@@ -255,7 +255,7 @@ async def privacy_policy() -> HTMLResponse:
         "advertisers.</li>"
         "</ol>"
         "<p><strong>Contact:</strong> "
-        "<a href='mailto:mlzsadt@gmail.com'>mlzsadt@gmail.com</a></p>",
+        "Please reach out via Instagram DM.</p>",
     )
 
 
@@ -291,8 +291,7 @@ async def data_deletion() -> HTMLResponse:
         "completely wiped from the SyncMe database, you have the right to "
         "request a data purge at any time.</p>"
         "<h2>How to request deletion</h2>"
-        "<p>Send an email to "
-        "<a href='mailto:mlzsadt@gmail.com'>mlzsadt@gmail.com</a> with the "
+        "<p>Send a direct message to our Instagram account with the "
         "subject line <strong>\u2018Data Deletion Request \u2013 SyncMe\u2019"
         "</strong>. Please include your exact Instagram handle so I can locate "
         "your records.</p>"
