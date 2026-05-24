@@ -14,6 +14,7 @@ Run with:
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import hmac
 import logging
@@ -108,6 +109,36 @@ def is_rate_limited(user_id: str) -> bool:
 @asynccontextmanager
 async def _lifespan(app: FastAPI):  # noqa: ANN001, ARG001
     logger.info("SyncMe is starting up 🚀")
+
+    # ── Materialise Instagram cookies from Base64 env var ───────────
+    # In ephemeral deploy environments (Railway, Fly, etc.) there is no
+    # persistent filesystem.  We store the Netscape cookie data as a
+    # Base64-encoded string in IG_COOKIE_BASE64 and decode it to disk
+    # at startup so yt-dlp can read it via IG_COOKIES_PATH.
+    ig_cookie_b64 = os.environ.get("IG_COOKIE_BASE64")
+    cookies_dest = os.environ.get("IG_COOKIES_PATH", "/tmp/ig_cookies.txt")
+
+    if ig_cookie_b64:
+        try:
+            cookie_bytes = base64.b64decode(ig_cookie_b64)
+            with open(cookies_dest, "wb") as f:
+                f.write(cookie_bytes)
+            logger.info(
+                "Instagram cookie file written to %s (%d bytes)",
+                cookies_dest,
+                len(cookie_bytes),
+            )
+        except Exception:
+            logger.exception(
+                "Failed to decode IG_COOKIE_BASE64 — yt-dlp will likely "
+                "fail with 'login required'."
+            )
+    else:
+        logger.warning(
+            "IG_COOKIE_BASE64 is not set — yt-dlp may fail to download "
+            "reels that require authentication."
+        )
+
     yield
     logger.info("SyncMe is shutting down 🛑")
 
