@@ -1,5 +1,5 @@
-# SyncMe
-
+# SyncMe - BETA STAGE
+SyncMe is an automated, AIpowered Instagram assistant that instantly processes, transcribes, and summarizes shared Reels. It transforms longform video content into concise, actionable insights—including thesis statements, key takeaways, and relevant tags delivered directly to your DMs, providing an effortless way to capture knowledge from your social feeds.
 Instagram DM bot that summarizes reels you share. When someone sends a reel link in a DM, SyncMe downloads the video, transcribes it with Groq Whisper, summarizes it with Llama, stores the result in Supabase, and replies with the summary.
 
 ## How it works
@@ -70,7 +70,3 @@ See `.env.example` for a template.
 | `ai_processor.py` | Whisper + Llama summarization |
 | `database.py` | Supabase inserts with retry |
 | `messenger.py` | Instagram DM replies |
-
-## License
-
-MIT (add a `LICENSE` file if you publish publicly).
