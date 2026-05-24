@@ -30,8 +30,13 @@ def _build_ytdlp_opts(dest_dir: str) -> dict:
 
     The output template is fixed to ``reel.mp4`` so the caller always
     knows the exact path without globbing.
+
+    If the ``IG_COOKIES_PATH`` environment variable is set, yt-dlp will
+    authenticate requests using the Netscape-format cookie file at that
+    path.  This is **required** for most Instagram content — without it,
+    yt-dlp will hit "login required" errors.
     """
-    return {
+    opts: dict = {
         # Save as <dest_dir>/reel.mp4
         "outtmpl": os.path.join(dest_dir, "reel.%(ext)s"),
         # Select the best pre-merged mp4 stream — avoids requiring ffmpeg
@@ -50,6 +55,21 @@ def _build_ytdlp_opts(dest_dir: str) -> dict:
         "writethumbnail": False,
         "writesubtitles": False,
     }
+
+    # ── Instagram authentication via cookie file ────────────────────
+    cookies_path = os.getenv("IG_COOKIES_PATH")
+    if cookies_path:
+        if os.path.isfile(cookies_path):
+            opts["cookiefile"] = cookies_path
+            logger.info("Using Instagram cookie file: %s", cookies_path)
+        else:
+            logger.warning(
+                "IG_COOKIES_PATH is set to '%s' but the file does not exist "
+                "— yt-dlp will attempt unauthenticated extraction.",
+                cookies_path,
+            )
+
+    return opts
 
 
 def _sync_download(reel_url: str, dest_dir: str) -> str:
