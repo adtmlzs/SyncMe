@@ -235,56 +235,165 @@ Copy the `https://xxxx.ngrok-free.app` URL — you'll need it for the Meta webho
 
 ## 📱 Phase 5 — Meta Developer Dashboard Setup
 
-This is the most involved step. Follow carefully.
+This is the most involved step, but every action is spelled out below. If this is your first time working with the Meta developer platform, read each step fully before clicking anything.
+
+> [!IMPORTANT]
+> **Before you start:** Your bot's Instagram account **must** be a Professional Account (Creator or Business). If it's still a personal account, switch it first:
+> Open the Instagram app → Go to your bot's profile → **Settings → Account type and tools → Switch to Professional Account** → Choose **Creator** or **Business** → Complete the prompts.
+
+---
 
 ### Step 1: Create a Meta Business App
 
-1. Go to [developers.facebook.com](https://developers.facebook.com/) → **My Apps** → **Create App**.
-2. Select **"Other"** as the use case, then **"Business"** as the app type.
-3. Name it (e.g., `SyncMe Bot`) and create it.
+1. Open [developers.facebook.com](https://developers.facebook.com/) in your browser and log in with the **Facebook account** that owns (or is linked to) your bot's Instagram Professional Account.
+2. Click **My Apps** in the top-right corner.
+3. Click the green **Create App** button.
+4. Under "What do you want your app to do?", select **"Other"** → click **Next**.
+5. Select **"Business"** as the app type → click **Next**.
+6. Fill in the details:
+   - **App name**: e.g., `SyncMe Bot`
+   - **App contact email**: your email address
+   - **Business Account**: select your business account, or skip if you don't have one
+7. Click **Create App**. You may be asked to re-enter your Facebook password.
+8. You should now be on your **App Dashboard**. Note the **App ID** shown at the top — you'll need it later.
+
+---
 
 ### Step 2: Add the Instagram Messaging Product
 
-1. In the App Dashboard, find **"Add Products"** in the left sidebar.
-2. Locate **"Instagram"** and click **Set Up**.
-3. Select **"Instagram Messaging"** (not Basic Display or Login).
+1. On the App Dashboard, look at the left sidebar. Click **"Add Products"** (or scroll down to the product list on the main page).
+2. Find **"Instagram"** in the product list and click **"Set Up"**.
+3. You'll see multiple options — select **"Instagram Messaging"** (sometimes labelled "Messenger Platform for Instagram").
+
+> [!WARNING]
+> Do **not** select "Instagram Basic Display" or "Instagram Login" — those are different products and will not give you DM webhook access.
+
+4. After adding it, you should see **"Instagram"** appear in the left sidebar with sub-items like **API Setup**, **Webhooks**, etc.
+
+---
 
 ### Step 3: Generate the Access Token
 
-1. Navigate to **Instagram → API Setup** in the left sidebar.
-2. Under **"Generate Token"**, connect your bot's Instagram Professional Account.
-3. Click **Generate Token** — this is your `META_ACCESS_TOKEN`.
+This token allows your bot to send DM replies through the Instagram Graph API.
 
-> [!IMPORTANT]
-> Copy this token immediately — it is only shown once. Store it securely in your `.env` or Railway variables.
+1. In the left sidebar, click **Instagram → API Setup**.
+2. You'll see a section called **"Generate Access Tokens"** (or "Token Generation").
+3. Click the **"Add Account"** or **"Connect"** button next to your bot's Instagram Professional Account.
+   - If you don't see your Instagram account listed, make sure:
+     - The Instagram account is a **Professional Account** (Creator or Business).
+     - The Instagram account is **linked to a Facebook Page** (Instagram Settings → Linked Accounts → Facebook).
+4. A popup will appear asking you to authorise permissions. **Check all the boxes** (messages, manage messages, etc.) and click **"Generate Token"**.
+5. A long token string will appear — **this is your `META_ACCESS_TOKEN`**.
+
+> [!CAUTION]
+> **Copy this token RIGHT NOW and paste it into your `.env` file or Railway variables.** The token is only displayed once. If you close the popup without copying, you'll need to regenerate it.
+
+---
 
 ### Step 4: Get the App Secret
 
-1. Go to **App Settings → Basic** in the left sidebar.
-2. Under **"App Secret"**, click **Show** and copy the value.
-3. This is your `META_APP_SECRET`.
+The App Secret is used to verify that incoming webhook payloads actually come from Meta (not a forged request).
+
+1. In the left sidebar, click **App Settings → Basic**.
+2. You'll see a field called **"App Secret"** — it's hidden by default.
+3. Click the **"Show"** button next to it. You may be asked to re-enter your Facebook password.
+4. Copy the revealed string — **this is your `META_APP_SECRET`**.
+5. Paste it into your `.env` file or Railway variables.
+
+---
 
 ### Step 5: Configure the Webhook
 
-1. Navigate to **Instagram → Webhooks** in the left sidebar.
-2. Click **"Configure"** (or "Edit Subscription").
-3. Fill in:
-   - **Callback URL**: `https://your-domain.up.railway.app/webhook` (your public server URL)
-   - **Verify Token**: The exact value you set as `META_VERIFY_TOKEN` in your environment.
-4. Click **"Verify and Save"**.
+The webhook is how Meta tells your server "hey, someone just sent a DM to your bot." You need to give Meta a public URL where it can send these notifications.
 
-> [!NOTE]
-> Your server must be running and publicly accessible when you click "Verify and Save". Meta sends a `GET /webhook` request with a challenge — your server echoes it back to prove ownership.
+> [!IMPORTANT]
+> **Your server must be running and publicly accessible BEFORE you do this step.** Meta will immediately send a verification request to your URL. If your server isn't running, verification will fail.
+>
+> - **If deploying on Railway:** Make sure your app is deployed and you have a public Railway domain (e.g., `syncme-production.up.railway.app`).
+> - **If developing locally:** Make sure `uvicorn` is running and ngrok is exposing port 8000 (see Phase 3).
+
+1. In the left sidebar, click **Instagram → Webhooks**.
+2. Click the **"Configure"** button (or **"Edit Subscription"** if you've set one up before).
+3. A popup will appear with two fields:
+   - **Callback URL**: Enter your full webhook URL. Examples:
+     - Railway: `https://syncme-production.up.railway.app/webhook`
+     - ngrok: `https://a1b2c3d4.ngrok-free.app/webhook`
+   - **Verify Token**: Enter the **exact same string** you set as `META_VERIFY_TOKEN` in your `.env` / Railway variables. This can be any string you choose (e.g., `my_super_secret_token_123`), but it **must match exactly** between your server and this field.
+4. Click **"Verify and Save"**.
+5. **What happens behind the scenes:** Meta sends a `GET` request to your Callback URL with a challenge parameter. Your FastAPI server receives it, checks that the verify token matches, and echoes the challenge back. If everything matches, Meta shows a green success message.
+
+**If verification fails**, check:
+- Is your server actually running? Check the logs.
+- Is the URL correct? Try opening `https://your-url/webhook?hub.mode=subscribe&hub.verify_token=YOUR_TOKEN&hub.challenge=test123` in your browser — you should see `test123` as the response.
+- Does `META_VERIFY_TOKEN` in your server's environment **exactly** match what you typed in the Meta dashboard? (Watch for trailing spaces.)
+
+---
 
 ### Step 6: Subscribe to Messaging Events
 
-1. After verification, you'll see a list of webhook fields.
-2. **Subscribe** to the `messages` field — this is the only event SyncMe needs.
+After the webhook is verified, you need to tell Meta which specific events to forward to your server.
 
-### Step 7: Test It
+1. You should still be on the **Instagram → Webhooks** page.
+2. You'll see a table listing webhook fields (events) like `messages`, `messaging_postbacks`, `messaging_optins`, etc.
+3. Find the row for **`messages`** and click the **"Subscribe"** toggle/button to turn it **ON**.
+4. You do **not** need to subscribe to any other field — `messages` is the only event SyncMe uses.
 
-1. Open Instagram and DM your bot account with an Instagram Reel link (e.g., `https://www.instagram.com/reel/ABC123/`).
-2. Watch your server logs — you should see the 4-stage pipeline execute:
+---
+
+### Step 7: Add Instagram Testers (Required for Testing)
+
+> [!IMPORTANT]
+> While your Meta App is in **Development Mode** (which it is by default), only approved testers can interact with your bot. If you skip this step, DMs sent to your bot will **not** trigger any webhook events — your server will receive nothing and it will seem like the bot is broken.
+
+This step adds Instagram accounts that are allowed to DM the bot during development.
+
+#### 7a: Add a Tester in the Meta Dashboard
+
+1. In the left sidebar, click **App Roles → Roles** (or **App Settings → Advanced → Roles**, depending on your dashboard version).
+2. You should see a section called **"People"** or **"Instagram Testers"**.
+3. Click **"Add Instagram Testers"**.
+4. In the popup, type the **Instagram username** of the account you want to test with (this is the personal account that will DM the bot — not the bot's own account).
+5. Click **"Submit"** to send the tester invitation.
+6. You can add multiple testers by repeating this process.
+
+#### 7b: Accept the Tester Invitation on Instagram
+
+The person you just added must now **accept** the invitation from the Instagram app. This is done on the tester's phone/browser, NOT in the Meta developer dashboard.
+
+1. Open the **Instagram app** (or website) and log in with the **tester's account** (the one you just invited).
+2. Go to **Settings**:
+   - On mobile: Tap your profile picture → tap the **☰ hamburger menu** (top-right) → tap **Settings and privacy**.
+   - On web: Click your profile picture → **Settings**.
+3. Scroll down and tap **Website Permissions** (on some versions it may be under **Security → Apps and Websites**).
+4. Tap **"Tester Invites"** (or **"App Invitations"**).
+5. You should see an invitation from your app (e.g., `SyncMe Bot`). Tap **"Accept"**.
+
+> [!NOTE]
+> If you don't see "Tester Invites" in your settings:
+> - Make sure you're logged into the **correct Instagram account** (the one that was invited, not the bot account).
+> - Try navigating directly to: **Settings → Security → Apps and Websites → Tester Invites**.
+> - The invitation can take a few minutes to appear. Wait 2–5 minutes and refresh.
+> - On newer Instagram versions, the path may be: **Settings → Website Permissions → Tester Invites**.
+
+#### 7c: Verify the Tester Was Added
+
+1. Go back to the Meta Developer Dashboard.
+2. Under **App Roles → Roles**, the tester should now show as **"Accepted"** (with a green status).
+3. This account can now DM the bot and trigger webhook events.
+
+---
+
+### Step 8: Test It End-to-End
+
+Now everything is wired up. Let's test the full pipeline.
+
+1. Open **Instagram** on the **tester's account** (the one you added and accepted in Step 7).
+2. Find your **bot's Instagram account** and open a DM conversation with it.
+3. Send a message containing an Instagram Reel link, for example:
+   ```
+   https://www.instagram.com/reel/ABC123/
+   ```
+4. Watch your server logs (Railway dashboard or your terminal). You should see the 4-stage pipeline execute:
    ```
    Stage 1/4 — Downloading reel...
    Stage 2/4 — Summarising with Groq...
@@ -292,7 +401,19 @@ This is the most involved step. Follow carefully.
    Stage 4/4 — Sending DM reply...
    ✅ Pipeline complete.
    ```
-3. The bot should reply with a formatted summary within 10-30 seconds.
+5. Go back to the Instagram DM — the bot should have replied with a formatted summary within 10–30 seconds.
+
+**If the bot doesn't respond**, check this troubleshooting list:
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| Server logs show **no incoming request** | Tester not added/accepted, or webhook not subscribed to `messages` | Complete Step 6 and Step 7 fully |
+| Server logs show `Webhook verified successfully ✅` but no DM events | You tested the webhook verification (GET), but no DM was actually sent | Actually send a DM from the tester account — don't just open the webhook URL in a browser |
+| `Webhook verification failed` in logs | `META_VERIFY_TOKEN` mismatch between server and Meta dashboard | Make sure the token string is **identical** in both places |
+| `yt-dlp failed` or `login required` | Cookies expired or `IG_COOKIE_BASE64` not set | Re-export cookies (see Phase 2) and update the env var |
+| `Supabase insert failed (HTTP 401)` | Wrong `SUPABASE_KEY` or table doesn't exist | Double-check your Supabase key and run the SQL from Phase 1 |
+| `DM to user returned HTTP 400` | `META_ACCESS_TOKEN` expired or missing permissions | Regenerate the token in Step 3 with all permissions checked |
+| Bot replies to itself in a loop | Bot is processing its own outgoing messages | This shouldn't happen — SyncMe only processes messages containing Reel URLs. If it does, check the sender ID filtering logic |
 
 ---
 
