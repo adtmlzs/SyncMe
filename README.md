@@ -389,7 +389,7 @@ Now everything is wired up. Let's test the full pipeline.
 
 1. Open **Instagram** on the **tester's account** (the one you added and accepted in Step 7).
 2. Find your **bot's Instagram account** and open a DM conversation with it.
-3. Send a message containing an Instagram Reel link, for example:
+3. Send a reel from your feed or a message containing an Instagram Reel link, for example:
    ```
    https://www.instagram.com/reel/ABC123/
    ```
