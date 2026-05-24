@@ -38,6 +38,7 @@ from fastapi import (
     Response,
     status,
 )
+from fastapi.responses import HTMLResponse
 
 load_dotenv()
 
@@ -208,6 +209,96 @@ async def verify_webhook(
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Verification token mismatch.",
+    )
+
+
+# ── Legal / Meta App Review pages ──────────────────────────────────
+_PAGE_CSS = (
+    "font-family: sans-serif; max-width: 800px; "
+    "margin: auto; padding: 20px; line-height: 1.6;"
+)
+
+
+def _legal_page(title: str, body_html: str) -> HTMLResponse:
+    """Return a minimal, mobile-friendly HTML page for legal copy."""
+    html = (
+        "<!DOCTYPE html>"
+        "<html lang='en'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+        f"<title>{title}</title></head>"
+        f"<body style='{_PAGE_CSS}'>"
+        f"<h1>{title}</h1>{body_html}"
+        "</body></html>"
+    )
+    return HTMLResponse(content=html)
+
+
+@app.get("/privacy", response_class=HTMLResponse, summary="Privacy Policy")
+async def privacy_policy() -> HTMLResponse:
+    return _legal_page(
+        "SyncMe Privacy Policy",
+        "<p>Hi! I\u2019m a student who built SyncMe as a passion project to make "
+        "learning from Instagram Reels easier. Because I respect your privacy, "
+        "this bot is designed to be as lightweight as possible.</p>"
+        "<ol>"
+        "<li><strong>We do not save your videos.</strong> When you send a Reel, "
+        "our server downloads it temporarily, transcribes the audio, generates "
+        "the AI summary, and then immediately deletes the video file from our "
+        "system.</li>"
+        "<li><strong>What we do save:</strong> We securely log your Instagram "
+        "User ID and the original Reel URL in our database. We strictly use this "
+        "to enforce our rate limits (preventing spam) and to ensure the bot can "
+        "reply to the correct chat.</li>"
+        "<li><strong>Third Parties:</strong> To make the bot work, data passes "
+        "through Meta (to receive/send DMs) and Groq (the AI that transcribes "
+        "and summarizes). We do not sell, rent, or share your data with "
+        "advertisers.</li>"
+        "</ol>"
+        "<p><strong>Contact:</strong> "
+        "<a href='mailto:mlzsadt@gmail.com'>mlzsadt@gmail.com</a></p>",
+    )
+
+
+@app.get("/terms", response_class=HTMLResponse, summary="Terms of Service")
+async def terms_of_service() -> HTMLResponse:
+    return _legal_page(
+        "SyncMe Terms of Service",
+        "<p>Welcome to SyncMe! By messaging this bot, you agree to these "
+        "simple rules:</p>"
+        "<ol>"
+        "<li><strong>Fair Use:</strong> This is a free, student-built passion "
+        "project. To keep server costs manageable, you are limited to processing "
+        "2 Reels per minute. Please do not spam the bot.</li>"
+        "<li><strong>As-Is Service:</strong> SyncMe relies on third-party AI "
+        "and Meta APIs. Sometimes things might break, time out, or generate "
+        "imperfect summaries. The service is provided \u2018as is\u2019 without "
+        "warranties.</li>"
+        "<li><strong>Acceptable Content:</strong> Please only send public, "
+        "accessible Instagram Reels. The bot cannot process private videos.</li>"
+        "</ol>",
+    )
+
+
+@app.get(
+    "/data-deletion",
+    response_class=HTMLResponse,
+    summary="Data Deletion Instructions",
+)
+async def data_deletion() -> HTMLResponse:
+    return _legal_page(
+        "SyncMe Data Deletion Instructions",
+        "<p>If you want your interaction history and Instagram User ID "
+        "completely wiped from the SyncMe database, you have the right to "
+        "request a data purge at any time.</p>"
+        "<h2>How to request deletion</h2>"
+        "<p>Send an email to "
+        "<a href='mailto:mlzsadt@gmail.com'>mlzsadt@gmail.com</a> with the "
+        "subject line <strong>\u2018Data Deletion Request \u2013 SyncMe\u2019"
+        "</strong>. Please include your exact Instagram handle so I can locate "
+        "your records.</p>"
+        "<p>Because this is a solo student project, please allow up to "
+        "<strong>48 hours</strong> for me to manually process your request and "
+        "permanently delete your data.</p>",
     )
 
 
