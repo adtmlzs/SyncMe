@@ -3,4 +3,5 @@ uvicorn[standard]>=0.34
 python-dotenv>=1.1
 groq>=0.25
 httpx>=0.28
+sentry-sdk>=2.0
 yt-dlp>=2024.0
