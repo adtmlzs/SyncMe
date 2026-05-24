@@ -19,11 +19,13 @@ import hmac
 import logging
 import os
 import re
+import time
 import sys
 import tempfile
 from contextlib import asynccontextmanager
 from typing import Any
 
+import sentry_sdk
 from dotenv import load_dotenv
 from fastapi import (
     BackgroundTasks,
@@ -60,6 +62,46 @@ _IG_URL_RE = re.compile(
     r"https?://(?:www\.)?instagram\.com/(?:reel|p|reels|tv)/[\w-]+",
     re.IGNORECASE,
 )
+
+
+# ── Sentry — global error tracking ──────────────────────────────────
+sentry_sdk.init(
+    dsn=os.environ.get("SENTRY_DSN"),
+    traces_sample_rate=1.0,
+)
+
+# ── In-memory rate limiting ─────────────────────────────────────────
+# Maps user_id → list of request timestamps (sliding window).
+USER_COOLDOWNS: dict[str, list[float]] = {}
+
+_RATE_LIMIT_MAX_REQUESTS: int = 2
+_RATE_LIMIT_WINDOW_SECONDS: float = 60.0
+
+
+def is_rate_limited(user_id: str) -> bool:
+    """Return ``True`` if *user_id* has exceeded 2 requests in the last 60 s.
+
+    Stale timestamps older than the window are pruned on every call to
+    prevent unbounded memory growth.
+    """
+    now = time.time()
+    cutoff = now - _RATE_LIMIT_WINDOW_SECONDS
+
+    # Retrieve (or create) the timestamp list for this user.
+    timestamps = USER_COOLDOWNS.get(user_id, [])
+
+    # Prune stale entries that have fallen outside the window.
+    timestamps = [t for t in timestamps if t > cutoff]
+
+    if len(timestamps) >= _RATE_LIMIT_MAX_REQUESTS:
+        # Still over the limit after cleanup — reject.
+        USER_COOLDOWNS[user_id] = timestamps
+        return True
+
+    # Under the limit — record this request.
+    timestamps.append(now)
+    USER_COOLDOWNS[user_id] = timestamps
+    return False
 
 
 # ── App ─────────────────────────────────────────────────────────────
@@ -185,6 +227,42 @@ async def receive_webhook(
                     "Reel URL detected from user=%s — scheduling processing.",
                     sender_id,
                 )
+
+                # ── Rate-limit gate ──────────────────────────────────
+                if is_rate_limited(sender_id):
+                    logger.warning(
+                        "Rate limit hit for user=%s — rejecting.",
+                        sender_id,
+                    )
+                    background_tasks.add_task(
+                        send_ig_message,
+                        sender_id,
+                        {
+                            "thesis": "⏳ Rate limit exceeded.",
+                            "key_points": [
+                                "You can only process 2 Reels per minute to prevent spam.",
+                                "Please wait 60 seconds and try again.",
+                            ],
+                            "tags": ["ratelimit"],
+                        },
+                    )
+                    continue  # Skip to next messaging event.
+
+                # ── Immediate UX acknowledgment (non-blocking) ──────
+                background_tasks.add_task(
+                    send_ig_message,
+                    sender_id,
+                    {
+                        "thesis": "🤖 Analyzing your Reel...",
+                        "key_points": [
+                            "Downloading video.",
+                            "Transcribing audio.",
+                            "Generating insights.",
+                        ],
+                        "tags": ["processing"],
+                    },
+                )
+
                 # _process_reel is now a coroutine — BackgroundTasks natively
                 # awaits coroutines on the running event loop, so no thread
                 # overhead and no loop-blocking.
